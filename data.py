@@ -207,7 +207,15 @@ class ADNI(Dataset):
         return len(self.data)
     
     def __getitem__(self, idx):
-        return self.data[idx], self.labels[idx]
+        '''
+        Returns:
+            X - Features
+            e - Event indicator
+            t - time of event/censor
+        '''
+        X = self.data[idx]
+        e, t = self.labels[idx]
+        return X, int(e), t # Cast bool to int
     
 file = 'D:\\Big_Data\\ADNI\\normalized.csv'
 df = pd.read_csv(file)
@@ -221,7 +229,7 @@ test_dataset = ADNI(test_samples, timeframe=60, c_encode='none', filters=['PTMAR
 print(len(train_dataset), len(test_dataset))
 
 for i in range(0, 10):
-    X, (e, t) = train_dataset[i]
+    X, e, t = train_dataset[i]
     print(X)   
     print(e, t)
     print()
