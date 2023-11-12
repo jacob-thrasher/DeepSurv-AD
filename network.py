@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-
+import numpy as np
 
 class DeepSurv(nn.Module):
     def __init__(self, n_input: int, n_hidden_layers: int, hidden_dim: int, activation_fn='relu', dropout=0.5, do_batchnorm=False):
@@ -13,6 +13,7 @@ class DeepSurv(nn.Module):
             dropout - probability of dropout (default 0.5)
             do_batchnorm - Include batch normalization layers (default False)
         '''
+        super().__init__()
 
         assert activation_fn in ['relu', 'selu'], f'Parameter "activation_fn" must be in [relu, selu], found {activation_fn}'
 
@@ -21,11 +22,11 @@ class DeepSurv(nn.Module):
         self.norm = nn.BatchNorm1d(num_features=hidden_dim)
 
         if activation_fn == 'relu': self.activation_fn = nn.ReLU()
-        else: activation_fn = nn.SELU()
+        else: self.activation_fn = nn.SELU()
         
         layers = []
         layers.append(nn.Linear(n_input, hidden_dim)) # Input layer
-        for n in n_hidden_layers:
+        for n in range(n_hidden_layers):
             layers.append(nn.Linear(hidden_dim, hidden_dim))
         self.layers = nn.ModuleList(layers)
     
@@ -38,5 +39,9 @@ class DeepSurv(nn.Module):
             x = self.activation_fn(x)
             x = self.dropout(x)
 
+        # TODO: Might need to add ReLU after output
+        # Hazard score should be a positive number. I'm not sure
+        # If we should treat negative values as 0 or let the model 
+        # use them as is
         x = self.out(x)
         return x

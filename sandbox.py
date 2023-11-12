@@ -1,15 +1,21 @@
 import pandas as pd
+from data import *
+from network import DeepSurv
+from torch.utils.data import DataLoader
+from sksurv.metrics import concordance_index_censored
+from torch.optim import Adam
+from utils import update_optim
 
 # Generate selected_features only csv
-df = pd.read_csv('D:\\Big_Data\\ADNI\\ADNIMERGE.csv')
-columns = list(df.columns)
-selected = ['RID', 'DX_bl', 'AGE', 'PTGENDER', 'PTEDUCAT', 'PTMARRY', 'ADAS11', 'ADAS13', 'CDRSB', 'FAQ', 'LDELTOTAL', 'MMSE', 'RAVLT_forgetting', 'RAVLT_immediate', 'RAVLT_learning', 'RAVLT_perc_forgetting', 'DX', 'M']
-to_drop = [x for x in columns if x not in selected]
+# df = pd.read_csv('D:\\Big_Data\\ADNI\\ADNIMERGE.csv')
+# columns = list(df.columns)
+# selected = ['RID', 'DX_bl', 'AGE', 'PTGENDER', 'PTEDUCAT', 'PTMARRY', 'ADAS11', 'ADAS13', 'CDRSB', 'FAQ', 'LDELTOTAL', 'MMSE', 'RAVLT_forgetting', 'RAVLT_immediate', 'RAVLT_learning', 'RAVLT_perc_forgetting', 'DX', 'M']
+# to_drop = [x for x in columns if x not in selected]
 
-for c in to_drop:
-    df.drop(c, axis=1, inplace=True)
+# for c in to_drop:
+#     df.drop(c, axis=1, inplace=True)
 
-df.to_csv('D:\\Big_Data\\ADNI\\selected_features.csv')
+# df.to_csv('D:\\Big_Data\\ADNI\\selected_features.csv')
 
 # normalize file
 # df = pd.read_csv('D:\\Big_Data\\ADNI\\clinical_only.csv')
@@ -29,3 +35,15 @@ df.to_csv('D:\\Big_Data\\ADNI\\selected_features.csv')
 
 
 # df.to_csv('D:\\Big_Data\\ADNI\\normalized.csv')
+
+
+###################################################################w
+
+model = DeepSurv(5, n_hidden_layers=3, hidden_dim=15, activation_fn='selu', dropout=0.5, do_batchnorm=True)
+optim = Adam(model.parameters(), lr=0.0001)
+
+print(optim.param_groups[0]['lr'])
+
+update_optim(optim, 1, 1)
+
+print(optim.param_groups[0]['lr'])

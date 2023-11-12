@@ -215,21 +215,6 @@ class ADNI(Dataset):
         '''
         X = self.data[idx]
         e, t = self.labels[idx]
-        return X, int(e), t # Cast bool to int
+        return X, e, t # Cast bool to int
     
-file = 'D:\\Big_Data\\ADNI\\normalized.csv'
-df = pd.read_csv(file)
-df = compress_data(df)
-df.to_csv('D:\\Big_Data\\ADNI\\norm_compress.csv')
-train_samples, test_samples, _ = get_train_test_samples(df, test_size=0.2)
 
-train_dataset = ADNI(train_samples, timeframe=60, c_encode='none', filters=['PTMARRY', 'PTGENDER'], as_tensor=True)
-test_dataset = ADNI(test_samples, timeframe=60, c_encode='none', filters=['PTMARRY', 'PTGENDER'], as_tensor=True)
-
-print(len(train_dataset), len(test_dataset))
-
-for i in range(0, 10):
-    X, e, t = train_dataset[i]
-    print(X)   
-    print(e, t)
-    print()
