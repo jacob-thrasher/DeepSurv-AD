@@ -39,11 +39,15 @@ from utils import update_optim
 
 ###################################################################w
 
-model = DeepSurv(5, n_hidden_layers=3, hidden_dim=15, activation_fn='selu', dropout=0.5, do_batchnorm=True)
-optim = Adam(model.parameters(), lr=0.0001)
+file = 'D:\\Big_Data\\ADNI\\normalized.csv'
+df = pd.read_csv(file)
+df = compress_data(df)
+train_samples, test_samples, _ = get_train_test_samples(df, test_size=0.2)
 
-print(optim.param_groups[0]['lr'])
+train_dataset = ADNI(train_samples, timeframe=60, c_encode='none', filters=['PTMARRY', 'PTGENDER'], as_tensor=True)
+test_dataset = ADNI(test_samples, timeframe=60, c_encode='none', filters=['PTMARRY', 'PTGENDER'], as_tensor=True)
 
-update_optim(optim, 1, 1)
+slabels = train_dataset.get_structured_labels()
+print(len(slabels))
 
-print(optim.param_groups[0]['lr'])
+print(train_dataset.get_cens_distribution())

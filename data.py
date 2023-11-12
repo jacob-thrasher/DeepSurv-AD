@@ -184,16 +184,9 @@ class ADNI(Dataset):
         Args:
         x (dataframe) - Input dataframe containing DX and M columns
         """
-        if not self.as_tensor:
-            labels = np.zeros(len(x), np.dtype({'names': ['cens', 'time'], 
-                                                                'formats': ['?', '<f8']}))
-            labels['cens'] = x['DX'] == 'Dementia'
-            # self.labels['time'] = self.data['EXIT']
-            labels['time'] = x['M']
-        else: 
-            indicators = (x['DX'] == 'Dementia').tolist()
-            times = x['M'].tolist()
-            labels = list(zip(indicators, times))
+        indicators = (x['DX'] == 'Dementia').tolist()
+        times = x['M'].tolist()
+        labels = list(zip(indicators, times))
         return labels # torch.tensor(labels)
     
     def normalize(self):
@@ -202,6 +195,23 @@ class ADNI(Dataset):
         min_, _ = torch.min(self.data, dim=0, keepdim=True)
         max_, _ = torch.max(self.data, dim=0, keepdim=True)
         self.data = (self.data - min_) / (max_ - min_)
+
+    def get_structured_labels(self):
+        labels = np.zeros(len(self.labels), np.dtype({'names': ['cens', 'time'], 
+                                                                'formats': ['?', '<f8']}))
+        labels['cens'] = [x[0] for x in self.labels]
+        labels['time'] = [x[1] for x in self.labels]
+        return labels
+
+    def get_cens_distribution(self):
+        num_success = sum([x[0] for x in self.labels])
+        num_cens = len(self.labels) - num_success
+        return {
+            'num_success': num_success,
+            'num_cens': num_cens,
+            'prop_success': num_success / len(self.labels),
+            'prop_cens': num_cens / len(self.labels)
+        }
 
     def __len__(self):
         return len(self.data)

@@ -1,6 +1,7 @@
+import os
 import torch
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 # TODO: I think the mean calculation in this function is wrong
 # Each row should be divided by the number of positive events
@@ -29,3 +30,17 @@ def update_optim(optim, epoch, lr_decay):
     new_lr = cur_lr / (1 + (epoch*lr_decay))
     optim.param_groups[0]['lr'] = new_lr
 
+def save_graph(title, dst, x_label, y_label, list1, list1_label, list2=None, list2_label=None):
+    plt.figure(figsize=(10, 6)) 
+    plt.title(title)
+    plt.plot(list1, label=list1_label)
+
+    if list2 is not None:
+        plt.plot(list2, label=list2_label)
+        
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.legend()
+    
+    plt.savefig(os.path.join(dst, f'{title}.png'))
+    plt.close()
