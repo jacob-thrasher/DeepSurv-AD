@@ -29,7 +29,7 @@ def train_step(model, optim, dataloader, device):
 
     return (loss_tot / len(dataloader)).item(), (C_tot / len(dataloader))
 
-def test_step(model, dataloader, train_cens_info, device):
+def test_step(model, dataloader, device):
     '''
 
     '''
