@@ -9,6 +9,7 @@ from data import *
 from network import DeepSurv
 from train_test import *
 from utils import update_optim
+import time
 
 # TODO: Loss is not the best metric to evaluate performance
 # Once I figure out what to do about C-index issue change to that
@@ -25,10 +26,8 @@ def execute_trail(config, epochs, train_dataloader, test_dataloader):
      - Best validation score
      - Epoch of best score
     '''
-    # Get number of inputs nodes
-    X, _, _ = next(iter(train_dataloader))
-
-    model = DeepSurv(len(X), 
+    # TODO: Make this not magic
+    model = DeepSurv(12, 
                     n_hidden_layers=config['num_hidden_layers'], 
                     hidden_dim=config['num_hidden_nodes'], 
                     activation_fn=config['activation_fn'], 
@@ -39,7 +38,6 @@ def execute_trail(config, epochs, train_dataloader, test_dataloader):
     lr_decay = config['lr_decay']
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f'Using {device} device')
     model.to(device)
 
     best_val_loss = 100000000000
@@ -49,7 +47,7 @@ def execute_trail(config, epochs, train_dataloader, test_dataloader):
         test_loss, test_C = test_step(model, test_dataloader, device=device)
 
         # lrs.append(optim.param_groups[0]['lr'])
-        update_optim(optim, epoch, lr_decay)
+        # update_optim(optim, epoch, lr_decay)
 
         if test_loss < best_val_loss:
             best_val_loss = test_loss
@@ -82,35 +80,38 @@ def gridsearch(gridsearch_config, epochs=20):
     experiments = generate_experiment_settings(gridsearch_config)
     results = {}
     for exp_number, experiment_config in enumerate(experiments):
+        print(f"Beginning experiment {exp_number+1}/{len(experiments)}...")
+        start = time.time()
+
         val, best_epoch = execute_trail(experiment_config, epochs, train_dataloader, test_dataloader)
         results[str(exp_number)] = {
             "val": val,
-            "best_epoch": best_epoch
+            "best_epoch": best_epoch,
+            "parameters": experiment_config
         }
 
+        end = time.time()
+
+        print(f'--> val : {val}\n--> time: {end - start}s')
     with open('files\\results.txt', 'w') as f:
         f.write(json.dumps(results))
     
     vals = [x['val'] for x in results.values()]
     best = np.argmin(vals)
 
-    return results[str(best)]
-
-test = {
-    'activation_fn': ['relu', 'selu'],
-    'num_hidden_layers': [1, 2, 3, 4],
-    'num_hidden_nodes': [20, 30, 40, 50],
-    'lr': list(np.linspace(1e-4, 0.05, 8)),
-    'lr_decay': [0, 1e-4, 5e-4, 1e-3]
-}
+    return results[str(best)], len(experiments)
 
 # test = {
 #     'activation_fn': ['relu', 'selu'],
-#     'num_hidden_layers': [1],
-#     'num_hidden_nodes': [20],
-#     'lr': [0.001],
-#     'lr_decay': [1e-4]
+#     'num_hidden_layers': [1, 2, 3, 4],
+#     'num_hidden_nodes': [20, 30, 40, 50],
+#     'lr': list(np.linspace(1e-4, 0.05, 8)),
+#     # 'lr_decay': [0, 1e-4, 5e-4, 1e-3]
+#     'lr_decay': [0]
 # }
 
-experiments = generate_experiment_settings(test)
-print(len(experiments))
+
+# best, trials = gridsearch(test, epochs=20)
+
+# print(f"\n\nThe best performing model after {trials} experiments was:")
+# print(best)

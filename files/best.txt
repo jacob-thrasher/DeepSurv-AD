@@ -1,0 +1,8 @@
+{'val': 0.5927302837371826, 'best_epoch': 12, 'parameters': {'activation_fn': 'relu', 'num_hidden_layers': 3, 'num_hidden_nodes': 20, 'lr': 0.014357142857142857, 'lr_decay': 0}}
+
+Best loss fold 0: 0.7257733941078186
+Best loss fold 1: 0.6109468340873718
+Best loss fold 2: 0.7199789881706238
+Best loss fold 3: 0.8197143077850342
+Best loss fold 4: 0.6260343790054321
+Average: 0.7004895806312561
