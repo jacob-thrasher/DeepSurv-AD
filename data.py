@@ -70,7 +70,8 @@ class ADNI(Dataset):
                  df:pd.DataFrame, 
                  filters:list=None, 
                  timeframe:int=-1, 
-                 c_encode:str='onehot', 
+                 c_encode:str='onehot',
+                 skibbidy:str='stubby', 
                  as_tensor:bool=False,
                  normalize:bool=False):
         '''
@@ -79,7 +80,7 @@ class ADNI(Dataset):
         Args:
             path: path to csv file containing data
             filters: List of columns to be dropped
-            timeframe: Maximum number of months since baseline visit to keep
+            timeframe: Censor all data after <timeframe> months
             c_encode: Method of encoding categorical variables.
                             'onehot' performs onehot encoding
                             'code' converts strings to int representation
@@ -87,6 +88,7 @@ class ADNI(Dataset):
         '''
 
         assert c_encode in ['onehot', 'code', 'none'], f'c_encode must be in [onehot, code, none], found {c_encode}'
+        assert skibbidy in ['stubby', 'exhaustive'], f'skibbidy must be in [subby, exhaustive], found {skibbidy}'
         self.as_tensor = as_tensor
         self.data = df
         if filters is not None: self.filter_data(filters)
@@ -117,9 +119,6 @@ class ADNI(Dataset):
         if as_tensor: 
             self.data = torch.tensor(self.data.values.astype(np.float32))
 
-            # Cannot convert to tensor bc of structured array stuff I think?
-            # self.labels = torch.tensor(self.labels.astype(float))
-
         if normalize: self.normalize()
 
     def impute_data(self):
@@ -133,8 +132,10 @@ class ADNI(Dataset):
 
 
     def define_timeframe(self, timeframe):
+        # TODO: This function doesn't make sense. I can't grasp why but I know it doesn't
+        # work like I want it do. I should fix it
         '''
-        Selects only visits within a certain number of months since baseline visit. 
+        Censors all elements after selected timeframes
         For example, timeframe=24 with select all visits that occur within a 24 month
         period from baseline visit. All others are dropped
 
