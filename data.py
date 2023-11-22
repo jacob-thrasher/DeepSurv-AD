@@ -64,14 +64,13 @@ def get_train_test_samples(df:pd.DataFrame, test_size:float=0.1, do_valid:bool=F
 
     return train_samples, test_samples, valid_samples
 
-
 class ADNI(Dataset):
     def __init__(self, 
                  df:pd.DataFrame, 
-                 filters:list=None, 
+                 drop_cols:list=None, 
                  timeframe:int=-1, 
                  c_encode:str='onehot',
-                 skibbidy:str='stubby', 
+                 label_type:str='stubby', 
                  as_tensor:bool=False,
                  normalize:bool=False):
         '''
@@ -88,18 +87,22 @@ class ADNI(Dataset):
         '''
 
         assert c_encode in ['onehot', 'code', 'none'], f'c_encode must be in [onehot, code, none], found {c_encode}'
-        assert skibbidy in ['stubby', 'exhaustive'], f'skibbidy must be in [subby, exhaustive], found {skibbidy}'
+        assert label_type in ['stubby', 'future', 'past'], f'label_type must be in [stubby, future, past], found {label_type}'
         self.as_tensor = as_tensor
         self.data = df
-        if filters is not None: self.filter_data(filters)
+        if drop_cols is not None: self.filter_data(drop_cols)
 
 
+        # Clean data
         self.impute_data()
         self.data['DX'].fillna("UNKNOWN", inplace=True)                # Unknown DX data can be considered censored, therefore it is a nonissue
         self.data.dropna(inplace=True)                                 # Drop remaining rows with missing categorical data
 
-        if timeframe > -1: self.define_timeframe(timeframe)
 
+        # Prep labels
+
+
+        if timeframe > -1: self.define_timeframe(timeframe)
         self.labels = self.create_label_array(self.data)
         self.filter_data(['DX', 'M', 'RID', 'DX_bl']) # Drop label data from input matrix
 
