@@ -6,6 +6,8 @@ from sksurv.metrics import concordance_index_censored
 from torch.optim import Adam
 from utils import update_optim
 import random
+import json
+
 
 # Generate selected_features only csv
 # df = pd.read_csv('D:\\Big_Data\\ADNI\\ADNIMERGE.csv')
@@ -40,12 +42,10 @@ import random
 
 ###################################################################w
 
-train = 'D:\\Big_Data\\ADNI\\train_normalized.csv'
-test = 'D:\\Big_Data\\ADNI\\test_normalized.csv'
-train_df = pd.read_csv(train)
-test_df = pd.read_csv(test)
-
-print(train_df.RID.unique())
+train = '/home/jacob/Documents/ADNI/csvs/train_normalized.csv'
+# test = 'D:\\Big_Data\\ADNI\\test_normalized.csv'
+# train_df = pd.read_csv(train)
+# test_df = pd.read_csv(test)
 
 # train_df, test_df = split_df(df, test_size=0.2)
 # train_df.to_csv('D:\\Big_Data\\ADNI\\train_normalized.csv')
@@ -54,7 +54,11 @@ print(train_df.RID.unique())
 # df = compress_data(df)
 # train_samples, test_samples, _ = get_train_test_samples(df, test_size=0.2)
 
-# train_dataset = ADNI(train_samples, timeframe=60, c_encode='none', filters=['PTMARRY', 'PTGENDER'], as_tensor=True)
+train_dataset = ADNI(train, timeframe=60, c_encode='none', drop_cols=['PTMARRY', 'PTGENDER', 'DX_bl'], as_tensor=True, label_type='future')
+test_dataset = ADNI(train, timeframe=-1, c_encode='none', drop_cols=['PTMARRY', 'PTGENDER', 'DX_bl'], as_tensor=True, label_type='future')
+print(len(train_dataset), len(test_dataset))
+
+print(train_dataset[0][0])
 # test_dataset = ADNI(test_samples, timeframe=60, c_encode='none', filters=['PTMARRY', 'PTGENDER'], as_tensor=True)
 
 # slabels = train_dataset.get_structured_labels()

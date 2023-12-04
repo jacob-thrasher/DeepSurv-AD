@@ -1,0 +1,7 @@
+{
+    "train_root": "/home/jacob/Documents/ADNI/csvs/train_normalized.csv", 
+    "test_root": "/home/jacob/Documents/ADNI/csvs/test_normalized.csv",
+    "model_path": "files",
+    "model_name": "future_stubby.pt",
+    "figure_path": "figures/future_stubby"
+}

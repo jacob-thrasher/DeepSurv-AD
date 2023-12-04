@@ -1,4 +1,5 @@
 import pandas as pd
+import json
 from data import *
 from network import DeepSurv
 from torch.utils.data import DataLoader
@@ -10,11 +11,11 @@ import matplotlib.pyplot as plt
 
 torch.manual_seed(0)
 
-train_dataset = ADNI('D:\\Big_Data\\ADNI\\train_normalized.csv', timeframe=60, c_encode='none', drop_cols=['PTMARRY', 'PTGENDER'], as_tensor=True)
-test_dataset = ADNI('D:\\Big_Data\\ADNI\\test_normalized.csv', timeframe=60, c_encode='none', drop_cols=['PTMARRY', 'PTGENDER'], as_tensor=True)
+with open('config.json', 'r') as f:
+    config = json.load(f)
 
-train_cens_data = train_dataset.get_structured_labels()
-test_cens_data = test_dataset.get_structured_labels()
+train_dataset = ADNI(config['train_root'], timeframe=60, c_encode='none', drop_cols=['PTMARRY', 'PTGENDER', 'DX_bl'], as_tensor=True, label_type='future')
+test_dataset = ADNI(config['test_root'], timeframe=60, c_encode='none', drop_cols=['PTMARRY', 'PTGENDER', 'DX_bl'], as_tensor=True, label_type='stubby')
 
 train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 test_dataloader  = DataLoader(test_dataset, batch_size=32, shuffle=True)
@@ -44,8 +45,8 @@ for epoch in range(epochs):
         update_optim(optim, epoch, lr_decay)
 
     if test_loss < best_val_loss:
-        print("Saving model...")
-        torch.save(model, 'files\\model.pt')
+        print("Saving model")
+        torch.save(model, os.path.join(config['model_path'], config['model_name']))
 
     train_losses.append(train_loss)
     test_losses.append(test_loss)
@@ -57,20 +58,20 @@ for epoch in range(epochs):
     print(f'\tTrain C: {train_C}\n\tTest C : {test_C}')
 
 
-save_graph('loss', 'figures', 
+save_graph('loss', config['figure_path'], 
            x_label='Epoch', y_label='loss',
            list1=train_losses,
            list2=test_losses,
            list1_label='Train loss',
            list2_label='Test loss')
 
-save_graph('c_idx', 'figures', 
+save_graph('c_idx', config['figure_path'], 
            x_label='Epoch', y_label='C',
            list1=test_Cs,
            list1_label='Test C')
 
 if do_lr_decay:
-    save_graph('lr', 'figures', 
+    save_graph('lr', config['figure_path'], 
            x_label='Epoch', y_label='LR',
            list1=lrs,
            list1_label='LR')

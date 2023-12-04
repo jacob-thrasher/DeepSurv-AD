@@ -46,9 +46,8 @@ class ADNI(Dataset):
 
         assert c_encode in ['onehot', 'code', 'none'], f'c_encode must be in [onehot, code, none], found {c_encode}'
         assert label_type in ['stubby', 'future', 'past'], f'label_type must be in [stubby, future, past], found {label_type}'
-        self.as_tensor = as_tensor
         self.data = pd.read_csv(csvpath)
-
+        self.label_type = label_type
 
 
         # Clean data
@@ -58,35 +57,20 @@ class ADNI(Dataset):
         self.data.dropna(inplace=True)                                 # Drop remaining rows with missing categorical data
         if timeframe > -1: self.define_timeframe(timeframe)
 
-        # Prep labels
         if label_type == 'stubby':
             self.data = self.compress_data(self.data)
-            self.labels = self.create_label_array(self.data)
-        elif label_type == 'future':
-            pass
-
-        self.filter_data(['DX', 'M', 'RID', 'DX_bl']) # Drop label data from input matrix
-
-
 
         if c_encode == 'onehot':
             self.data = self.data.astype({'PTGENDER':  'category',
                                          'PTMARRY':  'category'})
-            
             self.onehot_data = OneHotEncoder().fit_transform(self.data)
         elif c_encode == 'code':
-            # self.data.DX_bl = pd.Categorical(self.data.DX_bl)
-            # self.data['DX_bl'] = self.data.DX_bl.cat.codes
             self.data.PTGENDER = pd.Categorical(self.data.PTGENDER)
             self.data['PTGENDER'] = self.data.PTGENDER.cat.codes
             self.data.PTMARRY = pd.Categorical(self.data.PTMARRY)
             self.data['PTMARRY'] = self.data.PTMARRY.cat.codes
 
 
-
-
-
-        if as_tensor: self.data = torch.tensor(self.data.values.astype(np.float32))
         if normalize: self.normalize()
 
     def compress_data(self, data):
@@ -143,8 +127,9 @@ class ADNI(Dataset):
         Args:
             timeframe (int): Number of months since baseline visit
         '''
-        self.data.loc[self.data['M'] > timeframe, 'DX'] = 'UNKNOWN'
-        self.data.loc[self.data['M'] > timeframe, 'M'] = timeframe
+        # self.data.loc[self.data['M'] > timeframe, 'DX'] = 'UNKNOWN'
+        # self.data.loc[self.data['M'] > timeframe, 'M'] = timeframe
+        self.data = self.data[self.data['M'] <= timeframe]
 
     def filter_data(self, filters):
         '''
@@ -155,24 +140,6 @@ class ADNI(Dataset):
         '''
         for item in filters:
             self.data.drop(item, axis=1, inplace=True)
-
-    def create_label_columns(self):
-        return
-
-    def create_label_array(self, data, label_type):
-        """
-        Create structured label array from input matrix
-
-        Args:
-        x (dataframe) - Input dataframe containing DX and M columns
-        """
-        if label_type == 'stubby':
-            indicators = (data['DX'] == 'Dementia').tolist()
-            times = data['M'].tolist()
-            labels = list(zip(indicators, times))
-        elif label_type == 'future':
-            subjects = data.RID.unique()
-        return labels # torch.tensor(labels)
     
     def normalize(self):
         assert type(self.data) is torch.Tensor, f'Normalization input data must be torch.Tensor, found: {type(self.data)}'
@@ -182,7 +149,7 @@ class ADNI(Dataset):
         self.data = (self.data - min_) / (max_ - min_)
 
     def get_structured_labels(self):
-        labels = np.zeros(len(self.labels), np.dtype({'names': ['cens', 'time'], 
+        labels = np.zeros(len(self.data), np.dtype({'names': ['cens', 'time'], 
                                                                 'formats': ['?', '<f8']}))
         labels['cens'] = [x[0] for x in self.labels]
         labels['time'] = [x[1] for x in self.labels]
@@ -208,8 +175,37 @@ class ADNI(Dataset):
             e - Event indicator
             t - time of event/censor
         '''
-        X = self.data[idx]
-        e, t = self.labels[idx]
-        return X, e, t # Cast bool to int
+
+        if self.label_type == 'stubby':
+            X = self.data.iloc[idx]
+            X = X.drop(labels=['RID', 'DX', 'M'])
+
+            e = self.data.iloc[idx].DX == 'Dementia'
+            t = self.data.iloc[idx].M
+
+        elif self.label_type == 'future':
+            # Get features
+            X = self.data.iloc[idx]
+
+            # Get subject's history and sort
+            subject = X.RID
+            history = self.data[self.data['RID'] == subject].reset_index()
+            history.sort_values(by=['M'], inplace=True)
+
+            # Get date of first AD DX, or censor
+            events = history['DX'].to_list()
+            if 'Dementia' in events: 
+                e = True
+                event_time = history['M'].iloc[events.index('Dementia')]
+            else:
+                e = False
+                event_time = history['M'].iloc[-1] # Date of last visit
+
+            t = max(0, event_time - X.M) # t = months until positive DX or censor
+            X = X.drop(labels=['RID', 'DX', 'M'])
+
+        X = torch.tensor(X.values.astype(np.float32))
+        
+        return X, e, t
     
 

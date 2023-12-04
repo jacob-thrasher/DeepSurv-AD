@@ -30,10 +30,8 @@ def train_step(model, optim, dataloader, device):
     return (loss_tot / len(dataloader)).item(), (C_tot / len(dataloader))
 
 def test_step(model, dataloader, device):
-    '''
-
-    '''
     model.eval()
+
     C_tot = 0
     loss_tot = 0
     hazards = []
