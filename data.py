@@ -4,69 +4,27 @@ import pandas as pd
 from sksurv.preprocessing import OneHotEncoder
 import numpy as np
 import os
+import random
 
-def compress_data(data:pd.DataFrame) -> pd.DataFrame:
+
+
+def split_df(df, test_size=0.2):
     '''
-    Compresses data such that each patient has one row (X, y) such that
-    X = data from first (baseline) visit
-    y = label (or censor) from final visit
-
-    Args:
-        data (pandas.DataFrame) - Data to compress
+    Splits dataframe into train/test dataframes based on RID
     '''
-    compressed_data = pd.DataFrame(columns=data.columns)
-    patients = data['RID'].unique()
-    for p in patients:
-        history = data[data['RID'] == p].reset_index()
-        history.sort_values(by=['M'], inplace=True)
-        row = history.loc[0].copy() # get entire baseline row
+    subjects = df.RID.unique()                    # Get all unique subject IDs
+    num_test_subjects = int(len(subjects) * test_size)
+    test_subjects = random.sample(subjects, num_test_subjects)
+    train_subjects = [s for s in subjects if s not in test_subjects]
 
-        # Note: 
-        # Theoretically, we can always set the DX to the DX of the last visit
-        # but there is a small chance the DX was not recorded on the last visit, resulting in
-        # a false UNKNOWN DX. Instead, we manually check if each of the three possible
-        # outcomes are present in the patient's history and choose the worst one
-        events = history['DX'].to_list()
-        if 'Dementia' in events:
-            row['DX'] = 'Dementia'
-            row['M'] = history['M'].iloc[events.index('Dementia')]
-        else:
-            if 'MCI' in events: row['DX'] = 'MCI'
-            else: row['DX'] = 'CN'
-            row['M'] = history['M'].iloc[-1] # Date of last visit
+    test_df = df[df['RID'].isin(test_subjects)]
+    train_df = df[df['RID'].isin(train_subjects)]
 
-        compressed_data.loc[len(compressed_data.index)] = row
-
-    return compressed_data
-
-def get_train_test_samples(df:pd.DataFrame, test_size:float=0.1, do_valid:bool=False, valid_size:float=0.2) -> pd.DataFrame:
-    '''
-    Divides master csv into train/test split. Optinal: valid split
-
-    Args: 
-        df (pandas.DataFrame): Dataframe for master csv
-        test_size (float): proportion of df for test set
-        do_valid (bool): Create valid set?
-        valid_size
-    '''
-    df = df.sample(frac=1) # Shuffles df
-
-    n_test_samples = int(len(df) * test_size)
-    n_valid_samples = int(len(df) * valid_size)
-
-    train_samples = df.iloc[n_test_samples:]
-    test_samples = df.iloc[:n_test_samples]
-    valid_samples = None
-
-    if do_valid:
-        train_samples = train_samples.iloc[n_valid_samples:]
-        valid_samples = train_samples.iloc[:n_valid_samples]
-
-    return train_samples, test_samples, valid_samples
+    return train_df, test_df
 
 class ADNI(Dataset):
     def __init__(self, 
-                 df:pd.DataFrame, 
+                 csvpath, 
                  drop_cols:list=None, 
                  timeframe:int=-1, 
                  c_encode:str='onehot',
@@ -89,22 +47,27 @@ class ADNI(Dataset):
         assert c_encode in ['onehot', 'code', 'none'], f'c_encode must be in [onehot, code, none], found {c_encode}'
         assert label_type in ['stubby', 'future', 'past'], f'label_type must be in [stubby, future, past], found {label_type}'
         self.as_tensor = as_tensor
-        self.data = df
-        if drop_cols is not None: self.filter_data(drop_cols)
+        self.data = pd.read_csv(csvpath)
+
 
 
         # Clean data
+        if drop_cols is not None: self.filter_data(drop_cols)
         self.impute_data()
         self.data['DX'].fillna("UNKNOWN", inplace=True)                # Unknown DX data can be considered censored, therefore it is a nonissue
         self.data.dropna(inplace=True)                                 # Drop remaining rows with missing categorical data
-
+        if timeframe > -1: self.define_timeframe(timeframe)
 
         # Prep labels
+        if label_type == 'stubby':
+            self.data = self.compress_data(self.data)
+            self.labels = self.create_label_array(self.data)
+        elif label_type == 'future':
+            pass
 
-
-        if timeframe > -1: self.define_timeframe(timeframe)
-        self.labels = self.create_label_array(self.data)
         self.filter_data(['DX', 'M', 'RID', 'DX_bl']) # Drop label data from input matrix
+
+
 
         if c_encode == 'onehot':
             self.data = self.data.astype({'PTGENDER':  'category',
@@ -119,10 +82,46 @@ class ADNI(Dataset):
             self.data.PTMARRY = pd.Categorical(self.data.PTMARRY)
             self.data['PTMARRY'] = self.data.PTMARRY.cat.codes
 
-        if as_tensor: 
-            self.data = torch.tensor(self.data.values.astype(np.float32))
 
+
+
+
+        if as_tensor: self.data = torch.tensor(self.data.values.astype(np.float32))
         if normalize: self.normalize()
+
+    def compress_data(self, data):
+        '''
+        Compresses data such that each patient has one row (X, y) such that
+        X = data from first (baseline) visit
+        y = label (or censor) from final visit
+
+        Args:
+            data (pandas.DataFrame) - Data to compress
+        '''
+        compressed_data = pd.DataFrame(columns=data.columns)
+        patients = data['RID'].unique()
+        for p in patients:
+            history = data[data['RID'] == p].reset_index()
+            history.sort_values(by=['M'], inplace=True)
+            row = history.loc[0].copy() # get entire baseline row
+
+            # Note: 
+            # Theoretically, we can always set the DX to the DX of the last visit
+            # but there is a small chance the DX was not recorded on the last visit, resulting in
+            # a false UNKNOWN DX. Instead, we manually check if each of the three possible
+            # outcomes are present in the patient's history and choose the worst one
+            events = history['DX'].to_list()
+            if 'Dementia' in events:
+                row['DX'] = 'Dementia'
+                row['M'] = history['M'].iloc[events.index('Dementia')]
+            else:
+                if 'MCI' in events: row['DX'] = 'MCI'
+                else: row['DX'] = 'CN'
+                row['M'] = history['M'].iloc[-1] # Date of last visit
+
+            compressed_data.loc[len(compressed_data.index)] = row
+
+        return compressed_data
 
     def impute_data(self):
         '''
@@ -132,7 +131,6 @@ class ADNI(Dataset):
         for col in self.data.columns:
             if self.data.dtypes[col] != 'object':
                 self.data[col].fillna(self.data[col].mean(), inplace=True)
-
 
     def define_timeframe(self, timeframe):
         # TODO: This function doesn't make sense. I can't grasp why but I know it doesn't
@@ -158,39 +156,22 @@ class ADNI(Dataset):
         for item in filters:
             self.data.drop(item, axis=1, inplace=True)
 
-    def create_exit_value(self):
-        # Create exit value column
-        self.data['EXIT'] = 0
-        for patient in self.data['RID'].unique():
-            history = self.data[self.data['RID'] == patient].sort_values(by='M')
-            print(history)
-            # When DX is not dementia, EXIT will be the date of the next visit
-            # To create the initial EXIT list, we will shift all M values left 1
-            # And duplicate the final value
-            M = history['M'].tolist()
-            M[:len(M)-1] = M[1:]
-            history['EXIT'] = M
-            
-            # Determine visit of first AD diagnosis and set all future visits to that time
-            init_AD_diag = -1
-            for i, visit in history.iterrows():
-                if visit['DX'] == 'Dementia' and init_AD_diag == -1:
-                    init_AD_diag = visit['M']
-                if init_AD_diag != -1:
-                    history.at[i, 'EXIT'] = init_AD_diag
+    def create_label_columns(self):
+        return
 
-            self.data.update(history)
-
-    def create_label_array(self, x):
+    def create_label_array(self, data, label_type):
         """
         Create structured label array from input matrix
 
         Args:
         x (dataframe) - Input dataframe containing DX and M columns
         """
-        indicators = (x['DX'] == 'Dementia').tolist()
-        times = x['M'].tolist()
-        labels = list(zip(indicators, times))
+        if label_type == 'stubby':
+            indicators = (data['DX'] == 'Dementia').tolist()
+            times = data['M'].tolist()
+            labels = list(zip(indicators, times))
+        elif label_type == 'future':
+            subjects = data.RID.unique()
         return labels # torch.tensor(labels)
     
     def normalize(self):

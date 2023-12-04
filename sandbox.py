@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from sksurv.metrics import concordance_index_censored
 from torch.optim import Adam
 from utils import update_optim
+import random
 
 # Generate selected_features only csv
 # df = pd.read_csv('D:\\Big_Data\\ADNI\\ADNIMERGE.csv')
@@ -39,15 +40,24 @@ from utils import update_optim
 
 ###################################################################w
 
-file = 'D:\\Big_Data\\ADNI\\normalized.csv'
-df = pd.read_csv(file)
-df = compress_data(df)
-train_samples, test_samples, _ = get_train_test_samples(df, test_size=0.2)
+train = 'D:\\Big_Data\\ADNI\\train_normalized.csv'
+test = 'D:\\Big_Data\\ADNI\\test_normalized.csv'
+train_df = pd.read_csv(train)
+test_df = pd.read_csv(test)
 
-train_dataset = ADNI(train_samples, timeframe=60, c_encode='none', filters=['PTMARRY', 'PTGENDER'], as_tensor=True)
-test_dataset = ADNI(test_samples, timeframe=60, c_encode='none', filters=['PTMARRY', 'PTGENDER'], as_tensor=True)
+print(train_df.RID.unique())
 
-slabels = train_dataset.get_structured_labels()
-print(len(slabels))
+# train_df, test_df = split_df(df, test_size=0.2)
+# train_df.to_csv('D:\\Big_Data\\ADNI\\train_normalized.csv')
+# test_df.to_csv('D:\\Big_Data\\ADNI\\test_normalized.csv')
 
-print(train_dataset.get_cens_distribution())
+# df = compress_data(df)
+# train_samples, test_samples, _ = get_train_test_samples(df, test_size=0.2)
+
+# train_dataset = ADNI(train_samples, timeframe=60, c_encode='none', filters=['PTMARRY', 'PTGENDER'], as_tensor=True)
+# test_dataset = ADNI(test_samples, timeframe=60, c_encode='none', filters=['PTMARRY', 'PTGENDER'], as_tensor=True)
+
+# slabels = train_dataset.get_structured_labels()
+# print(len(slabels))
+
+# print(train_dataset.get_cens_distribution())

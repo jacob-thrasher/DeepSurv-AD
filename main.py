@@ -10,13 +10,8 @@ import matplotlib.pyplot as plt
 
 torch.manual_seed(0)
 
-file = 'D:\\Big_Data\\ADNI\\normalized.csv'
-df = pd.read_csv(file)
-df = compress_data(df)
-train_samples, test_samples, _ = get_train_test_samples(df, test_size=0.2)
-
-train_dataset = ADNI(train_samples, timeframe=60, c_encode='none', filters=['PTMARRY', 'PTGENDER'], as_tensor=True)
-test_dataset = ADNI(test_samples, timeframe=60, c_encode='none', filters=['PTMARRY', 'PTGENDER'], as_tensor=True)
+train_dataset = ADNI('D:\\Big_Data\\ADNI\\train_normalized.csv', timeframe=60, c_encode='none', drop_cols=['PTMARRY', 'PTGENDER'], as_tensor=True)
+test_dataset = ADNI('D:\\Big_Data\\ADNI\\test_normalized.csv', timeframe=60, c_encode='none', drop_cols=['PTMARRY', 'PTGENDER'], as_tensor=True)
 
 train_cens_data = train_dataset.get_structured_labels()
 test_cens_data = test_dataset.get_structured_labels()
